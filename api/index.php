@@ -1,54 +1,154 @@
-<html>
+
+<?php
+
+// Configuración de conexión
+$host = getenv('MYSQL_HOST');
+$user = getenv('MYSQL_USER');
+$password = getenv('MYSQL_PASSWORD');
+$database = 'SG';
+
+$conexion = null;
+$error = null;
+$resultado = null;
+
+// Comprobar variables de entorno
+if ($host === false || $host === '' ||
+    $user === false || $user === '' ||
+    $password === false || $password === '') {
+
+    $error = "Faltan variables de entorno en Vercel.";
+
+} else {
+
+    try {
+        // Activar excepciones de MySQLi
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+        // Conectar con Cloud SQL
+        $conexion = new mysqli(
+            $host,
+            $user,
+            $password,
+            $database
+        );
+
+        // Codificación de caracteres
+        $conexion->set_charset("utf8mb4");
+
+        // Consultar catálogo
+        $cadenaSQL = "SELECT * FROM s_customer";
+        $resultado = $conexion->query($cadenaSQL);
+
+    } catch (mysqli_sql_exception $e) {
+
+        // Registrar el error sin mostrar credenciales
+        error_log("Error MySQL: " . $e->getMessage());
+
+        $error = "Error de MySQL (código " .
+                 $e->getCode() . "): " .
+                 $e->getMessage();
+
+    } catch (Throwable $e) {
+
+        error_log("Error PHP: " . $e->getMessage());
+        $error = "Se ha producido un error en la aplicación.";
+    }
+}
+
+// Escapar contenido HTML
+function escapar($valor) {
+    return htmlspecialchars(
+        (string)$valor,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+}
+
+?>
+
+<!DOCTYPE html>
+<html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Customer Catalog</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Customer Catalog</title>
+
+    <link rel="stylesheet"
+          href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css">
 </head>
+
 <body>
-  <div class = "container">
+
+<div class="container mt-4">
+
     <div class="jumbotron">
-      <h1 class="display-4">Customer Catalog</h1>
-      <p class="lead">Customer Catalog Sample Application</p>
-      <hr class="my-4">
-      <p>PHP sample application connected to a MySQL database to list a customer catalog</p>
+        <h1 class="display-4">Customer Catalog</h1>
+        <p class="lead">Customer Catalog Sample Application</p>
+        <hr class="my-4">
+        <p>PHP sample application connected to a MySQL database</p>
     </div>
-    <table class="table table-striped table-responsive">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Credit Rating</th>
-          <th>Address</th>
-          <th>City</th>
-          <th>State</th>
-          <th>Country</th>
-          <th>Zip</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php
 
-        $conexion = mysqli_connect(getenv('MYSQL_HOST'), getenv('MYSQL_USER'), getenv('MYSQL_PASSWORD'), "SG");
+    <?php if ($error !== null): ?>
 
-        $cadenaSQL = "select * from s_customer";
-        $resultado = mysqli_query($conexion, $cadenaSQL);
+        <div class="alert alert-danger">
+            <h4>Error de conexión o consulta</h4>
+            <p><?php echo escapar($error); ?></p>
+        </div>
 
-        while ($fila = mysqli_fetch_object($resultado)) {
-         echo "<tr><td> " .$fila->name . 
-         "</td><td>" . $fila->credit_rating .
-         "</td><td>" . $fila->address .
-         "</td><td>" . $fila->city .
-         "</td><td>" . $fila->state .
-         "</td><td>" . $fila->country .
-         "</td><td>" . $fila->zip_code .
-         "</td></tr>";
-       }
-       ?>
-     </tbody>
-   </table>
- </div>
- <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
- <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
+    <?php elseif ($resultado !== null): ?>
+
+        <div class="alert alert-success">
+            Conexión con MySQL establecida correctamente.
+        </div>
+
+        <table class="table table-striped table-responsive">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Credit Rating</th>
+                    <th>Address</th>
+                    <th>City</th>
+                    <th>State</th>
+                    <th>Country</th>
+                    <th>Zip</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                <?php while ($fila = $resultado->fetch_object()): ?>
+
+                    <tr>
+                        <td><?php echo escapar($fila->name); ?></td>
+                        <td><?php echo escapar($fila->credit_rating); ?></td>
+                        <td><?php echo escapar($fila->address); ?></td>
+                        <td><?php echo escapar($fila->city); ?></td>
+                        <td><?php echo escapar($fila->state); ?></td>
+                        <td><?php echo escapar($fila->country); ?></td>
+                        <td><?php echo escapar($fila->zip_code); ?></td>
+                    </tr>
+
+                <?php endwhile; ?>
+
+            </tbody>
+        </table>
+
+        <?php if ($resultado->num_rows === 0): ?>
+            <div class="alert alert-warning">
+                La tabla s_customer no contiene registros.
+            </div>
+        <?php endif; ?>
+
+    <?php endif; ?>
+
+</div>
+
 </body>
 </html>
+
+<?php
+if ($conexion !== null) {
+    $conexion->close();
+}
+?>
